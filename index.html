@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Classement Elo Spikeball — Firebase</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --accent: #2563eb;
+      --accent-2: #1d4ed8;
+      --good: #15803d;
+      --bad: #b91c1c;
+      --warning: #b45309;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .container { max-width: 1280px; margin: 0 auto; padding: 24px; }
+    h1, h2, h3 { margin: 0 0 12px; }
+    p { color: var(--muted); }
+    .grid {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.04);
+      padding: 18px;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .row-4 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+    input, select, button {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 14px;
+      background: #fff;
+    }
+    input:focus, select:focus {
+      outline: 2px solid rgba(37,99,235,0.15);
+      border-color: var(--accent);
+    }
+    button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.15s ease;
+    }
+    button:hover { background: var(--accent-2); }
+    button.secondary {
+      background: white;
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+    button.secondary:hover { background: #f9fafb; }
+    button.danger {
+      background: #fee2e2;
+      color: var(--bad);
+      border: 1px solid #fecaca;
+    }
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .stat {
+      padding: 14px;
+      border-radius: 16px;
+      background: #f9fafb;
+      border: 1px solid var(--line);
+    }
+    .stat .label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .stat .value {
+      font-size: 24px;
+      font-weight: 800;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: middle;
+    }
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .pill {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #eff6ff;
+      color: var(--accent-2);
+    }
+    .delta-up { color: var(--good); font-weight: 700; }
+    .delta-down { color: var(--bad); font-weight: 700; }
+    .muted { color: var(--muted); }
+    .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+    .small { font-size: 12px; color: var(--muted); }
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .sticky { position: sticky; top: 16px; }
+    .footer-note {
+      margin-top: 14px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .match-line { font-weight: 600; }
+    .warning-box {
+      background: #fff7ed;
+      color: var(--warning);
+      border: 1px solid #fed7aa;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 13px;
+      margin-top: 10px;
+      display: none;
+    }
+    .ok-box {
+      background: #ecfdf5;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 13px;
+      margin-top: 10px;
+      display: none;
+    }
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+      .sticky { position: static; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .row-4 { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      .stats { grid-template-columns: 1fr; }
+      .row, .row-4, .actions { grid-template-columns: 1fr; }
+      th:nth-child(5), td:nth-child(5), th:nth-child(6), td:nth-child(6) { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="section-title">
+      <div>
+        <h1>Classement Elo Spikeball</h1>
+        <p>Version collaborative Firebase. Tout le groupe partage les mêmes matchs et le même classement.</p>
+      </div>
+      <span class="pill">Elo individuel · équipes variables</span>
+    </div>
+
+    <div class="grid">
+      <div class="sticky">
+        <div class="card">
+          <h2>Ajouter un match</h2>
+          <div class="row">
+            <div>
+              <label for="a1">Équipe A · Joueur 1</label>
+              <input id="a1" list="players-list" placeholder="Ex. Thomas" />
+            </div>
+            <div>
+              <label for="a2">Équipe A · Joueur 2</label>
+              <input id="a2" list="players-list" placeholder="Ex. Julie" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label for="b1">Équipe B · Joueur 1</label>
+              <input id="b1" list="players-list" placeholder="Ex. Marc" />
+            </div>
+            <div>
+              <label for="b2">Équipe B · Joueur 2</label>
+              <input id="b2" list="players-list" placeholder="Ex. Sarah" />
+            </div>
+          </div>
+          <div class="row-4">
+            <div>
+              <label for="scoreA">Score A</label>
+              <input id="scoreA" type="number" min="0" placeholder="21" />
+            </div>
+            <div>
+              <label for="scoreB">Score B</label>
+              <input id="scoreB" type="number" min="0" placeholder="17" />
+            </div>
+            <div>
+              <label for="target">Format</label>
+              <select id="target">
+                <option value="11">11</option>
+                <option value="15">15</option>
+                <option value="21" selected>21</option>
+              </select>
+            </div>
+            <div>
+              <label for="date">Date</label>
+              <input id="date" type="date" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label for="notes">Notes (optionnel)</label>
+              <input id="notes" placeholder="Ex. finale du midi" />
+            </div>
+            <div>
+              <label for="kFactor">K-factor</label>
+              <input id="kFactor" type="number" value="32" disabled />
+            </div>
+          </div>
+
+          <div class="warning-box" id="warningBox"></div>
+          <div class="ok-box" id="okBox"></div>
+
+          <div class="actions">
+            <button id="addMatchBtn">Ajouter le match</button>
+            <button class="secondary" id="simulateBtn">Simuler les gains/pertes</button>
+          </div>
+          <div class="footer-note">
+            Pondération du score : <strong>Fscore = min(1.5, 1 + 0.5 × écart / format)</strong><br>
+            Bonus outsider : <strong>×1.10 si écart Elo équipe ≥ 150</strong>, <strong>×1.20 si ≥ 250</strong><br>
+            Cap de variation : <strong>±35 points max par joueur et par match</strong><br>
+            Formule Elo : <strong>Δ = K × (résultat - probabilité) × Fscore × Fbonus</strong>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+          <h2>Connexion Firebase</h2>
+          <div class="footer-note" style="margin-top:0;">
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+          <h2>Données</h2>
+          <div class="actions">
+            <button class="secondary" id="downloadRankingBtn">Exporter classement CSV</button>
+            <button class="secondary" id="undoLastBtn">Annuler le dernier match</button>
+          </div>
+          <div class="actions" style="margin-top:10px;">
+            <button class="secondary" id="downloadCsvBtn">Exporter matchs CSV</button>
+            <button class="danger" id="resetBtn">Réinitialiser</button>
+          </div>
+          <div class="footer-note">
+            Les données sont partagées via Firestore. Les exports restent locaux sur l’appareil qui clique sur le bouton.
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="stats">
+          <div class="stat"><div class="label">Joueurs</div><div class="value" id="playersCount">0</div></div>
+          <div class="stat"><div class="label">Matchs</div><div class="value" id="matchesCount">0</div></div>
+          <div class="stat"><div class="label">Leader</div><div class="value" id="leaderName">—</div></div>
+          <div class="stat"><div class="label">Elo leader</div><div class="value" id="leaderElo">—</div></div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="section-title">
+            <h2>Classement</h2>
+            <span class="small">Classement officiel à partir de 5 matchs</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Joueur</th>
+                <th>Elo</th>
+                <th>Matchs</th>
+                <th>V</th>
+                <th>D</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody id="rankingBody"></tbody>
+          </table>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="section-title">
+            <h2>Stats joueurs</h2>
+            <span class="small">Vue rapide par joueur</span>
+          </div>
+          <div class="toolbar">
+            <select id="playerFilter">
+              <option value="">Tous les joueurs</option>
+            </select>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Joueur</th>
+                <th>Elo</th>
+                <th>Matchs</th>
+                <th>V</th>
+                <th>D</th>
+                <th>Win %</th>
+              </tr>
+            </thead>
+            <tbody id="statsBody"></tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <div class="section-title">
+            <h2>Historique des matchs</h2>
+            <span class="small">Modification/suppression admin, annulation rapide du dernier match</span>
+          </div>
+          <div class="toolbar">
+            <input id="searchMatches" placeholder="Filtrer par joueur, note ou date" />
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Match</th>
+                <th>Score</th>
+                <th>Δ</th>
+                <th>Bonus</th>
+                <th>Note</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="matchesBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <datalist id="players-list"></datalist>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      deleteDoc,
+      updateDoc,
+      doc,
+      onSnapshot,
+      query,
+      orderBy,
+      serverTimestamp,
+      getDocs,
+      writeBatch,
+    } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+
+    const DEFAULT_ELO = 1000;
+    const OFFICIAL_MATCHES = 5;
+    const FIXED_K = 32;
+    const MAX_DELTA = 35;
+    const ADMIN_PASSWORD = "spikeadmin";
+    const COLLECTION_NAME = "spikeball_matches";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBMaEYONmGA3LGQYfffNNNDa7olfuE7mnE",
+  authDomain: "elo-spikeball-du-midi.firebaseapp.com",
+  projectId: "elo-spikeball-du-midi",
+  storageBucket: "elo-spikeball-du-midi.firebasestorage.app",
+  messagingSenderId: "1054054553741",
+  appId: "1:1054054553741:web:db46fd124e7db9d499eac4"
+};
+
+    const el = (id) => document.getElementById(id);
+    const state = {
+      matches: [],
+      unsubscribe: null,
+    };
+
+    function normalizeName(name) {
+      return (name || "").trim().replace(/\s+/g, " ");
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function expectedScore(teamA, teamB) {
+      return 1 / (1 + Math.pow(10, (teamB - teamA) / 400));
+    }
+
+    function scoreFactor(scoreA, scoreB, target) {
+      const diff = Math.abs(scoreA - scoreB);
+      return Math.min(1.5, 1 + 0.5 * (diff / target));
+    }
+
+    function upsetFactor(teamAElo, teamBElo) {
+      const diff = Math.abs(teamAElo - teamBElo);
+      if (diff >= 250) return 1.2;
+      if (diff >= 150) return 1.1;
+      return 1.0;
+    }
+
+    function capDelta(delta) {
+      return Math.max(-MAX_DELTA, Math.min(MAX_DELTA, delta));
+    }
+
+    function showWarning(message) {
+      const box = el("warningBox");
+      const ok = el("okBox");
+      ok.style.display = "none";
+      ok.textContent = "";
+      if (!message) {
+        box.style.display = "none";
+        box.textContent = "";
+        return;
+      }
+      box.style.display = "block";
+      box.textContent = message;
+    }
+
+    function showOk(message) {
+      const box = el("warningBox");
+      const ok = el("okBox");
+      box.style.display = "none";
+      box.textContent = "";
+      ok.style.display = "block";
+      ok.textContent = message;
+    }
+
+    function firebaseConfigured() {
+      return firebaseConfig.apiKey !== "REMPLACE_MOI" && firebaseConfig.projectId !== "REMPLACE_MOI";
+    }
+
+    function computeStandings(matches) {
+      const players = {};
+
+      function ensurePlayer(name) {
+        if (!players[name]) {
+          players[name] = { name, elo: DEFAULT_ELO, matches: 0, wins: 0, losses: 0 };
+        }
+      }
+
+      const processedMatches = [];
+
+      matches.forEach((match, idx) => {
+        const a1 = match.a1, a2 = match.a2, b1 = match.b1, b2 = match.b2;
+        [a1, a2, b1, b2].forEach(ensurePlayer);
+
+        const teamAElo = (players[a1].elo + players[a2].elo) / 2;
+        const teamBElo = (players[b1].elo + players[b2].elo) / 2;
+        const pA = expectedScore(teamAElo, teamBElo);
+        const resultA = match.scoreA > match.scoreB ? 1 : 0;
+        const factor = scoreFactor(match.scoreA, match.scoreB, match.target);
+        const bonus = upsetFactor(teamAElo, teamBElo);
+        const rawDelta = FIXED_K * ((resultA ? (1 - pA) : (0 - pA))) * factor * bonus;
+        const delta = capDelta(rawDelta);
+        const roundedDelta = Number(delta.toFixed(2));
+
+        players[a1].elo = Number((players[a1].elo + roundedDelta).toFixed(2));
+        players[a2].elo = Number((players[a2].elo + roundedDelta).toFixed(2));
+        players[b1].elo = Number((players[b1].elo - roundedDelta).toFixed(2));
+        players[b2].elo = Number((players[b2].elo - roundedDelta).toFixed(2));
+
+        players[a1].matches++; players[a2].matches++; players[b1].matches++; players[b2].matches++;
+        if (resultA === 1) {
+          players[a1].wins++; players[a2].wins++;
+          players[b1].losses++; players[b2].losses++;
+        } else {
+          players[b1].wins++; players[b2].wins++;
+          players[a1].losses++; players[a2].losses++;
+        }
+
+        processedMatches.push({
+          ...match,
+          idx,
+          factor: Number(factor.toFixed(3)),
+          bonus: Number(bonus.toFixed(2)),
+          delta: roundedDelta,
+          deltaWasCapped: Math.abs(rawDelta) > MAX_DELTA,
+        });
+      });
+
+      const ranking = Object.values(players).sort(
+        (a, b) => b.elo - a.elo || b.wins - a.wins || a.losses - b.losses || a.name.localeCompare(b.name, "fr")
+      );
+      return { players, ranking, processedMatches };
+    }
+
+    function getAllPlayerNames() {
+      const names = new Set();
+      state.matches.forEach((m) => [m.a1, m.a2, m.b1, m.b2].forEach((n) => names.add(n)));
+      return Array.from(names).filter(Boolean).sort((a, b) => a.localeCompare(b, "fr"));
+    }
+
+    function refreshDatalist() {
+      const list = el("players-list");
+      list.innerHTML = getAllPlayerNames().map((name) => `<option value="${escapeHtml(name)}"></option>`).join("");
+    }
+
+    function populatePlayerFilter() {
+      const names = getAllPlayerNames();
+      const current = el("playerFilter").value;
+      el("playerFilter").innerHTML = '<option value="">Tous les joueurs</option>' +
+        names.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("");
+      el("playerFilter").value = names.includes(current) ? current : "";
+    }
+
+    function requireAdmin() {
+      const pwd = prompt("Mot de passe admin requis :");
+      return pwd === ADMIN_PASSWORD;
+    }
+
+    function matchIncludesQuery(match, queryText) {
+      return [match.a1, match.a2, match.b1, match.b2, match.notes || "", match.date || ""]
+        .some((v) => String(v).toLowerCase().includes(queryText));
+    }
+
+    function findDuplicateMatch(data) {
+      return state.matches.find((m) =>
+        m.date === data.date &&
+        m.scoreA === data.scoreA &&
+        m.scoreB === data.scoreB &&
+        m.target === data.target &&
+        [m.a1, m.a2, m.b1, m.b2].join("|").toLowerCase() ===
+        [data.a1, data.a2, data.b1, data.b2].join("|").toLowerCase()
+      );
+    }
+
+    function render() {
+      const { ranking, processedMatches } = computeStandings(state.matches);
+      refreshDatalist();
+      populatePlayerFilter();
+
+      el("playersCount").textContent = ranking.length;
+      el("matchesCount").textContent = processedMatches.length;
+      el("leaderName").textContent = ranking[0]?.name || "—";
+      el("leaderElo").textContent = ranking[0] ? Math.round(ranking[0].elo) : "—";
+
+      el("rankingBody").innerHTML = ranking.map((player, i) => {
+        const official = player.matches >= OFFICIAL_MATCHES;
+        return `
+          <tr>
+            <td>${i + 1}</td>
+            <td><strong>${escapeHtml(player.name)}</strong></td>
+            <td>${player.elo.toFixed(2)}</td>
+            <td>${player.matches}</td>
+            <td>${player.wins}</td>
+            <td>${player.losses}</td>
+            <td><span class="pill" style="background:${official ? "#ecfdf5" : "#fff7ed"}; color:${official ? "#166534" : "#b45309"};">${official ? "Officiel" : "Provisoire"}</span></td>
+          </tr>
+        `;
+      }).join("") || `<tr><td colspan="7" class="muted">Aucun match pour le moment.</td></tr>`;
+
+      const selectedPlayer = el("playerFilter").value;
+      const statsPlayers = ranking.filter((p) => !selectedPlayer || p.name === selectedPlayer);
+      el("statsBody").innerHTML = statsPlayers.map((player) => {
+        const winRate = player.matches ? ((player.wins / player.matches) * 100).toFixed(0) : "0";
+        return `
+          <tr>
+            <td><strong>${escapeHtml(player.name)}</strong></td>
+            <td>${player.elo.toFixed(2)}</td>
+            <td>${player.matches}</td>
+            <td>${player.wins}</td>
+            <td>${player.losses}</td>
+            <td>${winRate}%</td>
+          </tr>
+        `;
+      }).join("") || `<tr><td colspan="6" class="muted">Aucun joueur pour ce filtre.</td></tr>`;
+
+      const queryText = el("searchMatches").value.trim().toLowerCase();
+      const visibleMatches = processedMatches.slice().reverse().filter((match) => !queryText || matchIncludesQuery(match, queryText));
+      el("matchesBody").innerHTML = visibleMatches.map((match) => {
+        const winnerA = match.scoreA > match.scoreB;
+        const deltaText = `${winnerA ? "+" : "-"}${Math.abs(match.delta).toFixed(2)} / ${winnerA ? "-" : "+"}${Math.abs(match.delta).toFixed(2)}`;
+        return `
+          <tr>
+            <td>${escapeHtml(match.date || "")}</td>
+            <td class="match-line">${escapeHtml(match.a1)} / ${escapeHtml(match.a2)} vs ${escapeHtml(match.b1)} / ${escapeHtml(match.b2)}</td>
+            <td>${match.scoreA}-${match.scoreB} <span class="muted">(en ${match.target})</span></td>
+            <td class="${winnerA ? "delta-up" : "delta-down"}">${deltaText}${match.deltaWasCapped ? ' <span class="muted">(cap)</span>' : ''}</td>
+            <td>score ×${match.factor.toFixed(2)} · elo ×${match.bonus.toFixed(2)}</td>
+            <td>${escapeHtml(match.notes || "")}</td>
+            <td>
+              <button class="secondary" onclick="window.editMatch('${match.id}')" style="padding:8px 10px; width:auto; margin-right:6px;">Modif.</button>
+              <button class="danger" onclick="window.deleteMatch('${match.id}')" style="padding:8px 10px; width:auto;">Suppr.</button>
+            </td>
+          </tr>
+        `;
+      }).join("") || `<tr><td colspan="7" class="muted">Ajoutez votre premier match.</td></tr>`;
+    }
+
+    function validateMatchInput(data) {
+      const names = [data.a1, data.a2, data.b1, data.b2];
+      if (names.some((n) => !n)) return "Tous les joueurs doivent être renseignés.";
+      if (new Set(names.map((n) => n.toLowerCase())).size !== 4) return "Un même joueur ne peut pas apparaître deux fois dans le même match.";
+      if (!Number.isFinite(data.scoreA) || !Number.isFinite(data.scoreB)) return "Les scores doivent être numériques.";
+      if (data.scoreA === data.scoreB) return "Le score ne peut pas être égal.";
+      if (data.scoreA < 0 || data.scoreB < 0) return "Les scores doivent être positifs.";
+      if (![11, 15, 21].includes(data.target)) return "Le format doit être 11, 15 ou 21.";
+      const winner = Math.max(data.scoreA, data.scoreB);
+      if (winner < data.target) return "Le score gagnant doit être au moins égal au format du match.";
+      return null;
+    }
+
+    function getFormData() {
+      return {
+        a1: normalizeName(el("a1").value),
+        a2: normalizeName(el("a2").value),
+        b1: normalizeName(el("b1").value),
+        b2: normalizeName(el("b2").value),
+        scoreA: Number(el("scoreA").value),
+        scoreB: Number(el("scoreB").value),
+        target: Number(el("target").value),
+        date: el("date").value,
+        notes: normalizeName(el("notes").value),
+        kFactor: FIXED_K,
+      };
+    }
+
+    function clearForm() {
+      ["a1", "a2", "b1", "b2", "scoreA", "scoreB", "notes"].forEach((id) => el(id).value = "");
+      el("target").value = "21";
+      el("kFactor").value = String(FIXED_K);
+      el("date").value = new Date().toISOString().slice(0, 10);
+      showWarning(null);
+    }
+
+    let db = null;
+    let matchesCollection = null;
+
+    async function initFirebase() {
+      if (!firebaseConfigured()) {
+        showWarning("Complète d’abord firebaseConfig dans le code avant de publier l’app.");
+        render();
+        return;
+      }
+
+      const app = initializeApp(firebaseConfig);
+      db = getFirestore(app);
+      matchesCollection = collection(db, COLLECTION_NAME);
+
+      const q = query(matchesCollection, orderBy("createdAt", "asc"));
+      state.unsubscribe = onSnapshot(q, (snapshot) => {
+        state.matches = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        render();
+      }, (error) => {
+        showWarning(`Erreur Firestore : ${error.message}`);
+      });
+    }
+
+    async function addMatch() {
+      const data = getFormData();
+      const error = validateMatchInput(data);
+      if (error) return showWarning(error);
+      if (!matchesCollection) return showWarning("Firebase n’est pas configuré.");
+      if (findDuplicateMatch(data) && !confirm("Ce match ressemble à un doublon. Voulez-vous quand même l’ajouter ?")) return;
+      try {
+        await addDoc(matchesCollection, {
+          ...data,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        clearForm();
+        showOk("Match ajouté.");
+      } catch (e) {
+        showWarning(`Impossible d’ajouter le match : ${e.message}`);
+      }
+    }
+
+    async function updateMatchById(id, data) {
+      if (!db) return;
+      const ref = doc(db, COLLECTION_NAME, id);
+      await updateDoc(ref, {
+        ...data,
+        updatedAt: serverTimestamp(),
+      });
+    }
+
+    async function deleteMatchById(id) {
+      if (!db) return;
+      const ref = doc(db, COLLECTION_NAME, id);
+      await deleteDoc(ref);
+    }
+
+    window.editMatch = async function(id) {
+      if (!requireAdmin()) return alert("Mot de passe incorrect.");
+      const match = state.matches.find((m) => m.id === id);
+      if (!match) return;
+      el("a1").value = match.a1;
+      el("a2").value = match.a2;
+      el("b1").value = match.b1;
+      el("b2").value = match.b2;
+      el("scoreA").value = match.scoreA;
+      el("scoreB").value = match.scoreB;
+      el("target").value = String(match.target);
+      el("date").value = match.date || "";
+      el("notes").value = match.notes || "";
+      showOk("Match chargé. Modifie puis clique sur “Enregistrer la modification”.");
+      el("addMatchBtn").textContent = "Enregistrer la modification";
+      el("addMatchBtn").dataset.editId = id;
+    };
+
+    window.deleteMatch = async function(id) {
+      if (!requireAdmin()) return alert("Mot de passe incorrect.");
+      if (!confirm("Supprimer ce match ?")) return;
+      try {
+        await deleteMatchById(id);
+        showOk("Match supprimé.");
+      } catch (e) {
+        showWarning(`Suppression impossible : ${e.message}`);
+      }
+    };
+
+    async function handleAddOrEdit() {
+      const editId = el("addMatchBtn").dataset.editId;
+      const data = getFormData();
+      const error = validateMatchInput(data);
+      if (error) return showWarning(error);
+      if (!matchesCollection) return showWarning("Firebase n’est pas configuré.");
+
+      try {
+        if (editId) {
+          if (!requireAdmin()) return alert("Mot de passe incorrect.");
+          await updateMatchById(editId, data);
+          el("addMatchBtn").textContent = "Ajouter le match";
+          delete el("addMatchBtn").dataset.editId;
+          clearForm();
+          showOk("Match modifié.");
+        } else {
+          await addMatch();
+        }
+      } catch (e) {
+        showWarning(`Opération impossible : ${e.message}`);
+      }
+    }
+
+async function undoLastMatch() {
+  if (!requireAdmin()) return alert("Mot de passe incorrect.");
+  if (!state.matches.length) return showWarning("Aucun match à annuler.");
+  const last = state.matches[state.matches.length - 1];
+  try {
+    await deleteMatchById(last.id);
+    showOk("Dernier match annulé.");
+  } catch (e) {
+    showWarning(`Impossible d’annuler : ${e.message}`);
+  }
+}
+
+    function exportMatchesCsv() {
+      const headers = ["date","a1","a2","b1","b2","scoreA","scoreB","target","notes","kFactor"];
+      const rows = state.matches.map((m) => headers.map((h) => JSON.stringify(m[h] ?? "")).join(","));
+      const csv = [headers.join(","), ...rows].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "spikeball-elo-matchs.csv";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function exportRankingCsv() {
+      const { ranking } = computeStandings(state.matches);
+      const headers = ["rank","player","elo","matches","wins","losses","status"];
+      const rows = ranking.map((p, i) => [
+        i + 1,
+        p.name,
+        p.elo.toFixed(2),
+        p.matches,
+        p.wins,
+        p.losses,
+        p.matches >= OFFICIAL_MATCHES ? "Officiel" : "Provisoire"
+      ].map((v) => JSON.stringify(v)).join(","));
+      const csv = [headers.join(","), ...rows].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "spikeball-elo-classement.csv";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    async function resetAll() {
+      if (!requireAdmin()) return alert("Mot de passe incorrect.");
+      if (!confirm("Réinitialiser tous les matchs et le classement ?")) return;
+      if (!db) return;
+      try {
+        const snapshot = await getDocs(collection(db, COLLECTION_NAME));
+        const batch = writeBatch(db);
+        snapshot.forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+        showOk("Base réinitialisée.");
+      } catch (e) {
+        showWarning(`Réinitialisation impossible : ${e.message}`);
+      }
+    }
+
+    el("addMatchBtn").addEventListener("click", handleAddOrEdit);
+    el("simulateBtn").addEventListener("click", () => {
+      const data = getFormData();
+      const error = validateMatchInput(data);
+      if (error) return showWarning(error);
+      const { players } = computeStandings(state.matches);
+      const getElo = (name) => players[name]?.elo ?? DEFAULT_ELO;
+      const teamAElo = (getElo(data.a1) + getElo(data.a2)) / 2;
+      const teamBElo = (getElo(data.b1) + getElo(data.b2)) / 2;
+      const pA = expectedScore(teamAElo, teamBElo);
+      const factor = scoreFactor(data.scoreA, data.scoreB, data.target);
+      const bonus = upsetFactor(teamAElo, teamBElo);
+      const resultA = data.scoreA > data.scoreB ? 1 : 0;
+      const rawDelta = FIXED_K * ((resultA ? (1 - pA) : (0 - pA))) * factor * bonus;
+      const delta = capDelta(rawDelta);
+      const winner = resultA ? `Équipe A (${data.a1} / ${data.a2})` : `Équipe B (${data.b1} / ${data.b2})`;
+      showWarning(`${winner} gagnante. Variation estimée : ${Math.abs(delta).toFixed(2)} points par joueur. Probabilité victoire A : ${(pA * 100).toFixed(1)}%. Facteur score : ${factor.toFixed(3)}. Bonus Elo : ×${bonus.toFixed(2)}.${Math.abs(rawDelta) > MAX_DELTA ? " Cap appliqué." : ""}`);
+    });
+    el("downloadCsvBtn").addEventListener("click", exportMatchesCsv);
+    el("downloadRankingBtn").addEventListener("click", exportRankingCsv);
+    el("undoLastBtn").addEventListener("click", undoLastMatch);
+    el("resetBtn").addEventListener("click", resetAll);
+    el("playerFilter").addEventListener("change", render);
+    el("searchMatches").addEventListener("input", render);
+
+    el("date").value = new Date().toISOString().slice(0, 10);
+    render();
+    initFirebase();
+  </script>
+</body>
+</html>
