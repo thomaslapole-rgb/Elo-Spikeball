@@ -305,6 +305,12 @@
       </div>
 
       <div>
+        <div class="card" style="margin-bottom:16px;">
+  <div class="section-title">
+    <h2>🏆 Podium</h2>
+  </div>
+  <div id="podium" style="display:flex; gap:10px; justify-content:center; text-align:center;"></div>
+</div>
         <div class="stats">
           <div class="stat"><div class="label">Joueurs</div><div class="value" id="playersCount">0</div></div>
           <div class="stat"><div class="label">Matchs</div><div class="value" id="matchesCount">0</div></div>
@@ -583,6 +589,21 @@ const firebaseConfig = {
 
     function render() {
       const { ranking, processedMatches } = computeStandings(state.matches);
+      // --- PODIUM ---
+const podiumEl = document.getElementById("podium");
+if (podiumEl) {
+  const top3 = ranking.slice(0, 3);
+  podiumEl.innerHTML = top3.map((p, i) => {
+    const medal = ["🥇","🥈","🥉"][i] || "";
+    return `
+      <div style="flex:1; padding:10px; border-radius:12px; background:#f9fafb; border:1px solid #e5e7eb;">
+        <div style="font-size:20px;">${medal}</div>
+        <div style="font-weight:800;">${p.name}</div>
+        <div style="font-size:12px; color:#6b7280;">${Math.round(p.elo)} pts</div>
+      </div>
+    `;
+  }).join("");
+}
       refreshDatalist();
       populatePlayerFilter();
 
